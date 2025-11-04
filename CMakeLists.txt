@@ -3,8 +3,9 @@ project(meshcore_c)
 
 list(APPEND sources
     meshcore/packet.c
-    meshcore/payload/advert.c
+    meshcore/payload/request.c
     meshcore/payload/ack.c
+    meshcore/payload/advert.c
     main.c)
 
 add_executable(meshcore_c ${sources})
