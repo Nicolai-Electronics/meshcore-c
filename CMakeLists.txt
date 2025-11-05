@@ -6,6 +6,7 @@ list(APPEND sources
     meshcore/payload/request.c
     meshcore/payload/ack.c
     meshcore/payload/advert.c
+    meshcore/payload/grp_txt.c
     main.c)
 
 add_executable(meshcore_c ${sources})

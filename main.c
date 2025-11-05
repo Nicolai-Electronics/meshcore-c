@@ -1,6 +1,8 @@
 #include <stdio.h>
+#include <string.h>
 #include "meshcore/packet.h"
 #include "meshcore/payload/advert.h"
+#include "meshcore/payload/grp_txt.h"
 
 unsigned char packet_bin[] = {0x11, 0x00, 0x7e, 0x76, 0x62, 0x67, 0x6f, 0x7f, 0x08, 0x50, 0xa8, 0xa3, 0x55, 0xba, 0xaf,
                               0xbf, 0xc1, 0xeb, 0x7b, 0x41, 0x74, 0xc3, 0x40, 0x44, 0x2d, 0x7d, 0x71, 0x61, 0xc9, 0x47,
@@ -12,6 +14,20 @@ unsigned char packet_bin[] = {0x11, 0x00, 0x7e, 0x76, 0x62, 0x67, 0x6f, 0x7f, 0x
                               0xd5, 0x02, 0x38, 0xc5, 0xb8, 0xf8, 0x57, 0x57, 0x37, 0x53, 0x54, 0x52, 0x2f, 0x50, 0x75,
                               0x67, 0x65, 0x74, 0x4d, 0x65, 0x73, 0x68, 0x20, 0x43, 0x6f, 0x75, 0x67, 0x61, 0x72};
 unsigned int  packet_bin_len = 134;
+
+unsigned char test_message_rx_bin[]   = {0x15, 0x00, 0x11, 0x61, 0x72, 0xfb, 0x24, 0x6c, 0x57, 0x9e, 0x01, 0x0a, 0x18,
+                                         0x18, 0x6f, 0xfb, 0x79, 0x3a, 0x18, 0x81, 0xec, 0x7c, 0x2d, 0x64, 0xda, 0x78,
+                                         0xbb, 0xaf, 0x0c, 0x05, 0x71, 0xae, 0x29, 0xa1, 0x2d, 0xf5, 0xc4};
+unsigned int  test_message_rx_bin_len = 37;
+
+unsigned char advert_bin[] = {
+    0x12, 0x00, 0x2b, 0xdc, 0x0e, 0x54, 0x51, 0xb7, 0xdb, 0x3b, 0x2a, 0xc2, 0xc7, 0x8c, 0x8f, 0xdd, 0xaa, 0x76,
+    0x38, 0xb6, 0x4a, 0xbf, 0x56, 0xe5, 0xcd, 0xff, 0xdf, 0xd8, 0xaf, 0x09, 0x62, 0x47, 0xe8, 0x4b, 0x50, 0xd7,
+    0x0b, 0x69, 0xe9, 0xaf, 0x04, 0xf9, 0x68, 0x15, 0xeb, 0x37, 0xc5, 0x6a, 0x45, 0xb9, 0x81, 0x7e, 0x15, 0x43,
+    0x07, 0x50, 0x5d, 0x8e, 0x01, 0x22, 0x47, 0x7e, 0xd8, 0x59, 0x80, 0x0c, 0x9c, 0x19, 0x2b, 0x53, 0x20, 0x60,
+    0x8d, 0xf4, 0x86, 0x40, 0x6e, 0x27, 0x2f, 0x2b, 0x7b, 0x87, 0xda, 0x29, 0x9b, 0x79, 0xaf, 0x83, 0xed, 0x46,
+    0x5c, 0x8e, 0x19, 0x03, 0x10, 0x50, 0xff, 0x97, 0xf3, 0x24, 0x61, 0x00, 0x81, 0x52, 0x65, 0x6e, 0x7a, 0x65};
+unsigned int advert_bin_len = 108;
 
 uint8_t encoded_packet[256] = {0};
 
@@ -77,14 +93,14 @@ const char* role_to_string(meshcore_device_role_t role) {
 }
 
 int main(int argc, char* argv[]) {
-    printf("Input packet binary data [%zu]:\n", packet_bin_len);
-    for (unsigned int i = 0; i < packet_bin_len; i++) {
-        printf("%02X", packet_bin[i]);
+    printf("Input packet binary data [%zu]:\n", advert_bin_len);
+    for (unsigned int i = 0; i < advert_bin_len; i++) {
+        printf("%02X", advert_bin[i]);
     }
     printf("\n");
 
     meshcore_message_t message;
-    if (meshcore_deserialize(packet_bin, packet_bin_len, &message) >= 0) {
+    if (meshcore_deserialize(advert_bin, advert_bin_len, &message) >= 0) {
         printf("Decoded message:\n");
         printf("Type: %s [%d]\n", type_to_string(message.type), message.type);
         printf("Route: %s [%d]\n", route_to_string(message.route), message.route);
@@ -152,6 +168,27 @@ int main(int argc, char* argv[]) {
                 printf("Failed to decode node advertisement payload.\n");
                 return -1;
             }
+        } else if (message.type == MESHCORE_PAYLOAD_TYPE_GRP_TXT) {
+            meshcore_grp_txt_t grp_txt;
+            if (meshcore_grp_txt_deserialize(message.payload, message.payload_length, &grp_txt) >= 0) {
+                printf("Decoded group text message:\n");
+                printf("Channel Hash: %02X\n", grp_txt.channel_hash);
+                printf("MAC and Data Length: %d\n", grp_txt.mac_and_data_length);
+                printf("MAC and Data [%d]: ", grp_txt.mac_and_data_length);
+                for (unsigned int i = 0; i < grp_txt.mac_and_data_length; i++) {
+                    printf("%02X", grp_txt.mac_and_data[i]);
+                }
+                printf("\n");
+
+                if (meshcore_grp_txt_serialize(&grp_txt, message.payload, &message.payload_length) < 0) {
+                    printf("Failed to serialize group text message payload.\n");
+                    return -1;
+                }
+
+            } else {
+                printf("Failed to decode group text message payload.\n");
+                return -1;
+            }
         }
     } else {
         printf("Failed to decode message.\n");
@@ -165,6 +202,14 @@ int main(int argc, char* argv[]) {
             printf("%02X", encoded_packet[i]);
         }
         printf("\n");
+
+        if (encoded_packet_len != test_message_rx_bin_len ||
+            memcmp(encoded_packet, test_message_rx_bin, test_message_rx_bin_len) != 0) {
+            printf("Serialized packet does not match original input!\n");
+            return -1;
+        } else {
+            printf("Serialized packet matches original input.\n");
+        }
     } else {
         printf("Failed to serialize message.\n");
         return -1;
