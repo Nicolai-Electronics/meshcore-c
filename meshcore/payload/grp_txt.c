@@ -21,8 +21,11 @@ int meshcore_grp_txt_serialize(const meshcore_grp_txt_t* grp_txt, uint8_t* out_p
     memcpy(&out_payload[position], &grp_txt->channel_hash, sizeof(uint8_t));
     position += sizeof(uint8_t);
 
-    memcpy(&out_payload[position], grp_txt->mac_and_data, grp_txt->mac_and_data_length);
-    position += grp_txt->mac_and_data_length;
+    memcpy(&out_payload[position], grp_txt->mac, MESHCORE_CIPHER_MAC_SIZE);
+    position += MESHCORE_CIPHER_MAC_SIZE;
+
+    memcpy(&out_payload[position], grp_txt->data, grp_txt->data_length);
+    position += grp_txt->data_length;
 
     *out_size = position;
 
@@ -41,9 +44,12 @@ int meshcore_grp_txt_deserialize(uint8_t* data, uint8_t size, meshcore_grp_txt_t
     memcpy(&out_grp_txt->channel_hash, &data[position], sizeof(uint8_t));
     position += sizeof(uint8_t);
 
-    out_grp_txt->mac_and_data_length = size - position;
-    memcpy(out_grp_txt->mac_and_data, &data[position], out_grp_txt->mac_and_data_length);
-    position += out_grp_txt->mac_and_data_length;
+    memcpy(out_grp_txt->mac, &data[position], MESHCORE_CIPHER_MAC_SIZE);
+    position += MESHCORE_CIPHER_MAC_SIZE;
+
+    out_grp_txt->data_length = size - position;
+    memcpy(out_grp_txt->data, &data[position], out_grp_txt->data_length);
+    position += out_grp_txt->data_length;
 
     return 0;
 }

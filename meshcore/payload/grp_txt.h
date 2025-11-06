@@ -12,9 +12,19 @@
 // Definitions
 
 typedef struct {
-    uint8_t channel_hash;
-    uint8_t mac_and_data_length;
-    uint8_t mac_and_data[MESHCORE_MAX_PAYLOAD_SIZE - sizeof(uint8_t)];
+    uint8_t  data_length;
+    uint8_t  data[MESHCORE_MAX_PAYLOAD_SIZE - sizeof(uint8_t) - MESHCORE_CIPHER_MAC_SIZE];
+    uint32_t timestamp;
+    uint8_t  text_type;
+    char*    text;
+} meshcore_grp_txt_decrypted_t;
+
+typedef struct {
+    uint8_t                      channel_hash;
+    uint8_t                      mac[MESHCORE_CIPHER_MAC_SIZE];
+    uint8_t                      data_length;
+    uint8_t                      data[MESHCORE_MAX_PAYLOAD_SIZE - sizeof(uint8_t) - MESHCORE_CIPHER_MAC_SIZE];
+    meshcore_grp_txt_decrypted_t decrypted;
 } meshcore_grp_txt_t;
 
 // Functions

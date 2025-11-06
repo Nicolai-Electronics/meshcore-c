@@ -1,5 +1,8 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include "aes.h"
+#include "hmac_sha256.h"
 #include "meshcore/packet.h"
 #include "meshcore/payload/advert.h"
 #include "meshcore/payload/grp_txt.h"
@@ -28,6 +31,8 @@ unsigned char advert_bin[] = {
     0x8d, 0xf4, 0x86, 0x40, 0x6e, 0x27, 0x2f, 0x2b, 0x7b, 0x87, 0xda, 0x29, 0x9b, 0x79, 0xaf, 0x83, 0xed, 0x46,
     0x5c, 0x8e, 0x19, 0x03, 0x10, 0x50, 0xff, 0x97, 0xf3, 0x24, 0x61, 0x00, 0x81, 0x52, 0x65, 0x6e, 0x7a, 0x65};
 unsigned int advert_bin_len = 108;
+
+uint8_t key[16] = {0x8b, 0x33, 0x87, 0xe9, 0xc5, 0xcd, 0xea, 0x6a, 0xc9, 0xe5, 0xed, 0xba, 0xa1, 0x15, 0xcd, 0x72};
 
 uint8_t encoded_packet[256] = {0};
 
@@ -93,14 +98,14 @@ const char* role_to_string(meshcore_device_role_t role) {
 }
 
 int main(int argc, char* argv[]) {
-    printf("Input packet binary data [%zu]:\n", advert_bin_len);
-    for (unsigned int i = 0; i < advert_bin_len; i++) {
-        printf("%02X", advert_bin[i]);
+    printf("Input packet binary data [%zu]:\n", test_message_rx_bin_len);
+    for (unsigned int i = 0; i < test_message_rx_bin_len; i++) {
+        printf("%02X", test_message_rx_bin[i]);
     }
     printf("\n");
 
     meshcore_message_t message;
-    if (meshcore_deserialize(advert_bin, advert_bin_len, &message) >= 0) {
+    if (meshcore_deserialize(test_message_rx_bin, test_message_rx_bin_len, &message) >= 0) {
         printf("Decoded message:\n");
         printf("Type: %s [%d]\n", type_to_string(message.type), message.type);
         printf("Route: %s [%d]\n", route_to_string(message.route), message.route);
@@ -173,12 +178,67 @@ int main(int argc, char* argv[]) {
             if (meshcore_grp_txt_deserialize(message.payload, message.payload_length, &grp_txt) >= 0) {
                 printf("Decoded group text message:\n");
                 printf("Channel Hash: %02X\n", grp_txt.channel_hash);
-                printf("MAC and Data Length: %d\n", grp_txt.mac_and_data_length);
-                printf("MAC and Data [%d]: ", grp_txt.mac_and_data_length);
-                for (unsigned int i = 0; i < grp_txt.mac_and_data_length; i++) {
-                    printf("%02X", grp_txt.mac_and_data[i]);
+                printf("Data Length: %d\n", grp_txt.data_length);
+                printf("Received MAC: ", grp_txt.data_length);
+
+                for (unsigned int i = 0; i < MESHCORE_CIPHER_MAC_SIZE; i++) {
+                    printf("%02X", grp_txt.mac[i]);
                 }
                 printf("\n");
+
+                printf("Data [%d]: ", grp_txt.data_length);
+                for (unsigned int i = 0; i < grp_txt.data_length; i++) {
+                    printf("%02X", grp_txt.data[i]);
+                }
+                printf("\n");
+
+                // TO-DO: all of this MAC verification and decryption should be moved somewhere else
+
+                uint8_t out[128];
+                size_t  out_len =
+                    hmac_sha256(key, sizeof(key), grp_txt.data, grp_txt.data_length, out, MESHCORE_CIPHER_MAC_SIZE);
+
+                printf("Calculated MAC [%d]: ", out_len);
+                for (unsigned int i = 0; i < out_len; i++) {
+                    printf("%02X", out[i]);
+                }
+                printf("\n");
+
+                if (memcmp(out, grp_txt.mac, MESHCORE_CIPHER_MAC_SIZE) == 0) {
+                    printf("MAC verification: SUCCESS\n");
+
+                    // Copy encrypted data to buffer for decryption, AES works in-place
+                    grp_txt.decrypted.data_length = grp_txt.data_length;
+                    memcpy(grp_txt.decrypted.data, grp_txt.data, grp_txt.data_length);
+
+                    struct AES_ctx ctx;
+                    AES_init_ctx(&ctx, key);
+                    for (uint8_t i = 0; i < (grp_txt.decrypted.data_length / 16); i++) {
+                        AES_ECB_decrypt(&ctx, &grp_txt.decrypted.data[i * 16]);
+                    }
+
+                    printf("Data [%d]: ", grp_txt.decrypted.data_length);
+                    for (unsigned int i = 0; i < grp_txt.decrypted.data_length; i++) {
+                        printf("%02X", grp_txt.decrypted.data[i]);
+                    }
+                    printf("\n");
+
+                    uint8_t position = 0;
+                    memcpy(&grp_txt.decrypted.timestamp, grp_txt.decrypted.data, sizeof(uint32_t));
+                    position                            += sizeof(uint32_t);
+                    grp_txt.decrypted.text_type          = grp_txt.decrypted.data[position];
+                    position                            += sizeof(uint8_t);
+                    size_t text_length                   = grp_txt.decrypted.data_length - position;
+                    grp_txt.decrypted.text               = (char*)&grp_txt.decrypted.data[position];
+                    grp_txt.decrypted.text[text_length]  = '\0';
+
+                    printf("Timestamp: %" PRIu32 "\n", grp_txt.decrypted.timestamp);
+                    printf("Text Type: %u\n", grp_txt.decrypted.text_type);
+                    printf("Message: '%s'\n", grp_txt.decrypted.text);
+
+                } else {
+                    printf("MAC verification: FAILURE\n");
+                }
 
                 if (meshcore_grp_txt_serialize(&grp_txt, message.payload, &message.payload_length) < 0) {
                     printf("Failed to serialize group text message payload.\n");
