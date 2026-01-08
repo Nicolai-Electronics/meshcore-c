@@ -8,6 +8,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include "mc_companion.h"
+#include "mc_companion_serial_interface.h"
 
 #define FIELD_SIZE(type, field) (sizeof(((type*)0)->field))
 
@@ -31,8 +32,7 @@ void packet_callback(companion_packet_t* packet) {
         case COMPANION_PACKET_TYPE_COMMAND:
             switch (packet->command) {
                 case COMPANION_CMD_APP_START:
-                    printf("Received app start command. Application name is '%s'\r\n",
-                           packet->command_app_start_args.app_name);
+                    printf("Received app start command. Application name is '%s'\r\n", packet->command_app_start_args.app_name);
                     tx_packet.type                                        = COMPANION_PACKET_TYPE_RESPONSE;
                     tx_packet.response                                    = COMPANION_RESPONSE_CODE_SELF_INFO;
                     tx_packet.response_self_info_args.adv_type            = COMPANION_ADV_TYPE_CHAT;
@@ -49,32 +49,35 @@ void packet_callback(companion_packet_t* packet) {
                     tx_packet.response_self_info_args.bandwidth           = 62500;
                     tx_packet.response_self_info_args.spreading_factor    = 8;
                     tx_packet.response_self_info_args.coding_rate         = 8;
-                    snprintf(tx_packet.response_self_info_args.node_name,
-                             FIELD_SIZE(companion_resp_self_info_args_t, node_name), "Roadrunner");
-                    mc_companion_write_serial_frame(true, &tx_packet, sizeof(tx_buffer), tx_buffer, &tx_length);
+                    snprintf(tx_packet.response_self_info_args.node_name, FIELD_SIZE(companion_resp_self_info_args_t, node_name), "Roadrunner");
+                    mc_companion_write_serial_frame(true, &tx_packet,
+                                                    sizeof(companion_resp_self_info_args_t) - FIELD_SIZE(companion_resp_self_info_args_t, node_name) +
+                                                        strlen(tx_packet.response_self_info_args.node_name),
+                                                    sizeof(tx_buffer), tx_buffer, &tx_length);
                     transmit(tx_buffer, tx_length);
                     break;
                 case COMPANION_CMD_GET_CONTACTS:
+                    printf("Received get contacts command\r\n");
                     tx_packet.type                               = COMPANION_PACKET_TYPE_RESPONSE;
                     tx_packet.response                           = COMPANION_RESPONSE_CODE_CONTACTS_START;
                     tx_packet.response_contacts_start_args.count = 0;
-                    mc_companion_write_serial_frame(true, &tx_packet, sizeof(tx_buffer), tx_buffer, &tx_length);
+                    mc_companion_write_serial_frame(true, &tx_packet, sizeof(companion_resp_contacts_start_t), sizeof(tx_buffer), tx_buffer, &tx_length);
                     transmit(tx_buffer, tx_length);
                     tx_packet.type                                = COMPANION_PACKET_TYPE_RESPONSE;
                     tx_packet.response                            = COMPANION_RESPONSE_CODE_END_OF_CONTACTS;
                     tx_packet.response_end_of_contacts_args.since = 0;
-                    mc_companion_write_serial_frame(true, &tx_packet, sizeof(tx_buffer), tx_buffer, &tx_length);
+                    mc_companion_write_serial_frame(true, &tx_packet, sizeof(companion_resp_end_of_contacts_t), sizeof(tx_buffer), tx_buffer, &tx_length);
                     transmit(tx_buffer, tx_length);
                     break;
                 case COMPANION_CMD_SYNC_NEXT_MESSAGE:
+                    printf("Received sync next message command\r\n");
                     tx_packet.type     = COMPANION_PACKET_TYPE_RESPONSE;
                     tx_packet.response = COMPANION_RESPONSE_CODE_NO_MORE_MESSAGES;
-                    mc_companion_write_serial_frame(true, &tx_packet, sizeof(tx_buffer), tx_buffer, &tx_length);
+                    mc_companion_write_serial_frame(true, &tx_packet, 0, sizeof(tx_buffer), tx_buffer, &tx_length);
                     transmit(tx_buffer, tx_length);
                     break;
                 case COMPANION_CMD_DEVICE_QUERY:
-                    printf("Received device query command. Target app version is %u\r\n",
-                           packet->command_device_query_args.app_target_version);
+                    printf("Received device query command. Target app version is %u\r\n", packet->command_device_query_args.app_target_version);
                     // Respond with device info
                     tx_packet.type                                            = COMPANION_PACKET_TYPE_RESPONSE;
                     tx_packet.response                                        = COMPANION_RESPONSE_CODE_DEVICE_INFO;
@@ -85,39 +88,39 @@ void packet_callback(companion_packet_t* packet) {
                     tx_packet.response_device_info_args.ble_pin[1]            = 0;
                     tx_packet.response_device_info_args.ble_pin[2]            = 0;
                     tx_packet.response_device_info_args.ble_pin[3]            = 0;
-                    snprintf(tx_packet.response_device_info_args.firmware_build_date,
-                             FIELD_SIZE(companion_resp_device_info_args_t, firmware_build_date), "5 Jan 2026");
+                    snprintf(tx_packet.response_device_info_args.firmware_build_date, FIELD_SIZE(companion_resp_device_info_args_t, firmware_build_date),
+                             "5 Jan 2026");
                     snprintf(tx_packet.response_device_info_args.board_manufacturer_name,
-                             FIELD_SIZE(companion_resp_device_info_args_t, board_manufacturer_name),
-                             "Acme Corporation");
-                    snprintf(tx_packet.response_device_info_args.firmware_version,
-                             FIELD_SIZE(companion_resp_device_info_args_t, firmware_version), "v1.11.0");
-                    mc_companion_write_serial_frame(true, &tx_packet, sizeof(tx_buffer), tx_buffer, &tx_length);
+                             FIELD_SIZE(companion_resp_device_info_args_t, board_manufacturer_name), "Acme Corporation");
+                    snprintf(tx_packet.response_device_info_args.firmware_version, FIELD_SIZE(companion_resp_device_info_args_t, firmware_version), "v1.11.0");
+                    mc_companion_write_serial_frame(true, &tx_packet, sizeof(companion_resp_device_info_args_t), sizeof(tx_buffer), tx_buffer, &tx_length);
                     transmit(tx_buffer, tx_length);
                     break;
                 case COMPANION_CMD_GET_CHANNEL:
+                    printf("Received get channel command for channel ID %u\r\n", packet->command_get_channel_args.channel_idx);
                     tx_packet.type  = COMPANION_PACKET_TYPE_ERROR;
                     tx_packet.error = COMPANION_ERROR_CODE_NOT_FOUND;
-                    mc_companion_write_serial_frame(true, packet, sizeof(tx_buffer), tx_buffer, &tx_length);
+                    mc_companion_write_serial_frame(true, &tx_packet, 0, sizeof(tx_buffer), tx_buffer, &tx_length);
                     transmit(tx_buffer, tx_length);
                     break;
                 case COMPANION_CMD_SET_FLOOD_SCOPE:
+                    printf("Received set flood scope command\r\n");
                     tx_packet.type = COMPANION_PACKET_TYPE_OK;
-                    mc_companion_write_serial_frame(true, packet, sizeof(tx_buffer), tx_buffer, &tx_length);
+                    mc_companion_write_serial_frame(true, &tx_packet, 0, sizeof(tx_buffer), tx_buffer, &tx_length);
                     transmit(tx_buffer, tx_length);
                     break;
             }
             break;
         case COMPANION_PACKET_TYPE_ERROR:
             printf("Parse error, returning error packet to client\r\n");
-            mc_companion_write_serial_frame(true, packet, sizeof(tx_buffer), tx_buffer, &tx_length);
+            mc_companion_write_serial_frame(true, &tx_packet, 0, sizeof(tx_buffer), tx_buffer, &tx_length);
             transmit(tx_buffer, tx_length);
             break;
         default:
             printf("Unsupported type\r\n");
             tx_packet.type  = COMPANION_PACKET_TYPE_ERROR;
             tx_packet.error = COMPANION_ERROR_CODE_UNSUPPORTED_CMD;
-            mc_companion_write_serial_frame(true, packet, sizeof(tx_buffer), tx_buffer, &tx_length);
+            mc_companion_write_serial_frame(true, &tx_packet, 0, sizeof(tx_buffer), tx_buffer, &tx_length);
             transmit(tx_buffer, tx_length);
             break;
     }
@@ -145,6 +148,8 @@ int main(int argc, char* argv[]) {
 
     printf("Opened serial port\r\n");
 
+    tcflush(serial_port, TCIOFLUSH);  // Flush any existing data
+
     struct termios tty;
 
     if (tcgetattr(serial_port, &tty) != 0) {
@@ -162,14 +167,36 @@ int main(int argc, char* argv[]) {
     tty.c_cc[VTIME] = 0;
     tty.c_cc[VMIN]  = 1;
 
+    // Set baudrate
+    switch (baudrate) {
+        case 4800:
+            cfsetospeed(&tty, B4800);
+            break;
+        case 9600:
+            cfsetospeed(&tty, B9600);
+            break;
+        case 19200:
+            cfsetospeed(&tty, B19200);
+            break;
+        case 38400:
+            cfsetospeed(&tty, B38400);
+            break;
+        case 115200:
+            cfsetospeed(&tty, B115200);
+            break;
+        default:
+            fprintf(stderr, "warning: baud rate %u is not supported, using 115200.\n", baudrate);
+            cfsetospeed(&tty, B115200);
+            break;
+    }
+    cfsetispeed(&tty, cfgetospeed(&tty));
+
     if (tcsetattr(serial_port, TCSANOW, &tty) != 0) {
         printf("Failed to write attributes (%i): %s\n", errno, strerror(errno));
         return 1;
     }
 
-    // Set baudrate
-    cfsetispeed(&tty, baudrate);
-    cfsetospeed(&tty, baudrate);
+    printf("\r\n");
 
     while (1) {
         uint8_t read_buffer[MESHCORE_COMPANION_MAX_FRAME_SIZE] = {0};

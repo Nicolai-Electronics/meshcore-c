@@ -50,7 +50,7 @@ BraceWrapping:
   AfterUnion: false
   BeforeCatch: false
   BeforeElse: false
-ColumnLimit: 120
+ColumnLimit: 160
 
 # Includes
 IncludeBlocks: Merge

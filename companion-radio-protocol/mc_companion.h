@@ -8,10 +8,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MESHCORE_COMPANION_MAX_FRAME_SIZE 172
-#define MESHCORE_COMPANION_MAX_PAYLOAD_SIZE \
-    (MESHCORE_COMPANION_MAX_FRAME_SIZE - sizeof(uint8_t) - sizeof(uint16_t))  // Frame size minus start byte and length
-#define MESHCORE_COMPANION_PUBLIC_KEY_SIZE 32
+#define MESHCORE_COMPANION_MAX_FRAME_SIZE   172
+#define MESHCORE_COMPANION_MAX_PAYLOAD_SIZE (MESHCORE_COMPANION_MAX_FRAME_SIZE - sizeof(uint8_t) - sizeof(uint16_t))  // Frame size minus start byte and length
+#define MESHCORE_COMPANION_PUBLIC_KEY_SIZE  32
 
 typedef enum {
     COMPANION_CMD_APP_START               = 1,
@@ -142,20 +141,192 @@ typedef struct {
 } __attribute__((packed)) companion_cmd_app_start_args_t;
 
 typedef struct {
+    uint8_t  txt_type;
+    uint8_t  attempt;
+    uint32_t msg_timestamp;
+    uint8_t  pub_key_prefix[6];
+    uint8_t  text[MESHCORE_COMPANION_MAX_PAYLOAD_SIZE - sizeof(uint8_t) * 8 - sizeof(uint32_t)];
+} __attribute__((packed)) companion_cmd_send_txt_msg_args_t;
+
+typedef struct {
+    uint8_t  txt_type;
+    uint8_t  channel_idx;
+    uint32_t msg_timestamp;
+    uint8_t  text[MESHCORE_COMPANION_MAX_PAYLOAD_SIZE - sizeof(uint8_t) * 8 - sizeof(uint32_t)];
+} __attribute__((packed)) companion_cmd_send_channel_txt_msg_args_t;
+
+typedef struct {
     uint32_t since;
 } __attribute__((packed)) companion_cmd_get_contacts_args_t;
+
+typedef struct {
+    uint32_t timestamp;
+} __attribute__((packed)) companion_cmd_set_device_time_args_t;
+
+typedef struct {
+    char advert_name[32];
+} __attribute__((packed)) companion_cmd_set_advert_name_args_t;
+
+typedef struct {
+    uint8_t  pub_key[32];
+    uint8_t  type;
+    uint8_t  flags;
+    int8_t   out_path_len;
+    uint8_t  out_path[64];
+    char     name[32];
+    uint32_t last_advert_timestamp;
+    int32_t  gps_latitude;   // Optional
+    int32_t  gps_longitude;  // Optional
+    uint32_t last_modified;  // Optional
+} __attribute__((packed)) companion_cmd_add_update_contact_args_t;
+
+typedef struct {
+    uint32_t frequency;
+    uint32_t bandwidth;
+    uint8_t  spreading_factor;
+    uint8_t  coding_rate;
+} __attribute__((packed)) companion_cmd_set_radio_params_args_t;
+
+typedef struct {
+    uint8_t tx_power;
+} __attribute__((packed)) companion_cmd_set_radio_tx_power_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_reset_path_args_t;
+
+typedef struct {
+    int32_t latitude;
+    int32_t longitude;
+    int32_t altitude;  // Optional
+} __attribute__((packed)) companion_cmd_set_advert_latlon_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_remove_contact_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_share_contact_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];  // Optional (if not provided export self)
+} __attribute__((packed)) companion_cmd_export_contact_args_t;
+
+typedef struct {
+    uint8_t advert_packet[MESHCORE_COMPANION_MAX_PAYLOAD_SIZE];
+} __attribute__((packed)) companion_cmd_import_contact_args_t;
+
+typedef struct {
+    char magic[6];  // should be "reboot"
+} __attribute__((packed)) companion_cmd_reboot_args_t;
+
+typedef struct {
+    uint32_t rx;
+    uint32_t af;
+} __attribute__((packed)) companion_cmd_set_tuning_params_args_t;
 
 typedef struct {
     uint8_t app_target_version;
 } __attribute__((packed)) companion_cmd_device_query_args_t;
 
 typedef struct {
+    uint8_t private_key[64];
+} __attribute__((packed)) companion_cmd_import_private_key_args_t;
+
+typedef struct {
+    int8_t  path_length;
+    uint8_t path_and_packet[MESHCORE_COMPANION_MAX_PAYLOAD_SIZE - sizeof(int8_t)];  // path[path_length] + raw data
+} __attribute__((packed)) companion_cmd_send_raw_data_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_login_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_status_req_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_has_connection_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_logout_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_get_contact_by_key_args_t;
+
+typedef struct {
     uint8_t channel_idx;
 } __attribute__((packed)) companion_cmd_get_channel_args_t;
 
 typedef struct {
+    uint8_t channel_idx;
+    uint8_t channel_name[32];
+    uint8_t channel_secret[16];
+} __attribute__((packed)) companion_cmd_set_channel_args_t;
+
+typedef struct {
+    uint8_t data[MESHCORE_COMPANION_MAX_PAYLOAD_SIZE];
+} __attribute__((packed)) companion_cmd_sign_data_args_t;
+
+typedef struct {
+    uint32_t tag;
+    uint32_t auth;
+    uint8_t  flags;
+    uint8_t  path[MESHCORE_COMPANION_MAX_PAYLOAD_SIZE - sizeof(uint32_t) * 2 - sizeof(uint8_t)];
+} __attribute__((packed)) companion_cmd_send_trace_path_args_t;
+
+typedef struct {
+    uint8_t ble_pin[4];
+} __attribute__((packed)) companion_cmd_set_device_pin_args_t;
+
+typedef struct {
+    uint8_t manual_add_contacts;
+    uint8_t flags;                   // Optional
+    uint8_t advert_location_policy;  // Optional
+    uint8_t multi_acks;              // Optional
+} __attribute__((packed)) companion_cmd_set_other_params_args_t;
+
+typedef struct {
+    uint8_t reserved[3];
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_send_telemetry_req_args_t;
+
+typedef struct {
+    char setting_value[MESHCORE_COMPANION_MAX_PAYLOAD_SIZE];  // setting name and value separated by :
+} __attribute__((packed)) companion_cmd_set_custom_var_args_t;
+
+typedef struct {
+    uint8_t reserved;
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_get_advert_path_args_t;
+
+typedef struct {
+    uint8_t pub_key[32];
+    uint8_t req_data[MESHCORE_COMPANION_MAX_PAYLOAD_SIZE - 32];
+} __attribute__((packed)) companion_cmd_send_binary_req_args_t;
+
+typedef struct {
+    char magic[5];  // should be "reset"
+} __attribute__((packed)) companion_cmd_factory_reset_args_t;
+
+typedef struct {
+    uint8_t reserved;
+    uint8_t pub_key[32];
+} __attribute__((packed)) companion_cmd_send_path_discovery_req_args_t;
+
+typedef struct {
+    uint8_t reserved;
     uint8_t key[16];
 } __attribute__((packed)) companion_cmd_flood_scope_args_t;
+
+typedef struct {
+    uint8_t data[MESHCORE_COMPANION_MAX_PAYLOAD_SIZE];
+} __attribute__((packed)) companion_cmd_send_control_data_args_t;
 
 // Response argument structures
 
@@ -215,25 +386,55 @@ typedef struct {
         companion_error_code_t    error;
     };
     union {
-        uint8_t                           args[0];
-        companion_cmd_app_start_args_t    command_app_start_args;
-        companion_cmd_device_query_args_t command_device_query_args;
-        companion_cmd_get_channel_args_t  command_get_channel_args;
-        companion_cmd_flood_scope_args_t  command_flood_query_args;
-        companion_resp_contacts_start_t   response_contacts_start_args;
-        companion_resp_end_of_contacts_t  response_end_of_contacts_args;
-        companion_resp_self_info_args_t   response_self_info_args;
-        companion_resp_device_info_args_t response_device_info_args;
+        uint8_t                                      args[0];
+        // Commands
+        companion_cmd_app_start_args_t               command_app_start_args;
+        companion_cmd_send_txt_msg_args_t            command_send_txt_msg_args;
+        companion_cmd_send_channel_txt_msg_args_t    command_send_channel_txt_msg_args;
+        companion_cmd_get_contacts_args_t            command_get_contacts_args;
+        companion_cmd_set_device_time_args_t         command_set_device_time_args;
+        companion_cmd_set_advert_name_args_t         command_set_advert_name_args;
+        companion_cmd_add_update_contact_args_t      command_add_update_contact_args;
+        companion_cmd_set_radio_params_args_t        command_set_radio_params_args;
+        companion_cmd_set_radio_tx_power_args_t      command_set_radio_tx_power_args;
+        companion_cmd_reset_path_args_t              command_reset_path_args;
+        companion_cmd_set_advert_latlon_args_t       command_set_advert_latlon_args;
+        companion_cmd_remove_contact_args_t          command_remove_contact_args;
+        companion_cmd_share_contact_args_t           command_share_contact_args;
+        companion_cmd_export_contact_args_t          command_export_contact_args;
+        companion_cmd_import_contact_args_t          command_import_contact_args;
+        companion_cmd_reboot_args_t                  command_reboot_args;
+        companion_cmd_set_tuning_params_args_t       command_set_tuning_params_args;
+        companion_cmd_device_query_args_t            command_device_query_args;
+        companion_cmd_import_private_key_args_t      command_import_private_key_args;
+        companion_cmd_send_raw_data_args_t           command_send_raw_data_args;
+        companion_cmd_login_args_t                   command_login_args;
+        companion_cmd_status_req_args_t              command_status_req_args;
+        companion_cmd_has_connection_args_t          command_has_connection_args;
+        companion_cmd_logout_args_t                  command_logout_args;
+        companion_cmd_get_contact_by_key_args_t      command_get_contact_by_key_args;
+        companion_cmd_get_channel_args_t             command_get_channel_args;
+        companion_cmd_set_channel_args_t             command_set_channel_args;
+        companion_cmd_sign_data_args_t               command_sign_data_args;
+        companion_cmd_send_trace_path_args_t         command_send_trace_path_args;
+        companion_cmd_set_device_pin_args_t          command_set_device_pin_args;
+        companion_cmd_set_other_params_args_t        command_set_other_params_args;
+        companion_cmd_send_telemetry_req_args_t      command_send_telemetry_req_args;
+        companion_cmd_set_custom_var_args_t          command_set_custom_var_args;
+        companion_cmd_get_advert_path_args_t         command_get_advert_path_args;
+        companion_cmd_send_binary_req_args_t         command_send_binary_req_args;
+        companion_cmd_factory_reset_args_t           command_factory_reset_args;
+        companion_cmd_send_path_discovery_req_args_t command_send_path_discovery_req_args;
+        companion_cmd_flood_scope_args_t             command_flood_scope_args;
+        companion_cmd_send_control_data_args_t       command_send_control_data_args;
+        // Responses
+        companion_resp_contacts_start_t              response_contacts_start_args;
+        companion_resp_end_of_contacts_t             response_end_of_contacts_args;
+        companion_resp_self_info_args_t              response_self_info_args;
+        companion_resp_device_info_args_t            response_device_info_args;
     };
 } companion_packet_t;
 
 // Callback
 
 typedef void (*mc_companion_receive_callback)(companion_packet_t* packet);
-
-// Functions
-
-void mc_companion_read_serial_frame(bool is_server, uint8_t* framed_data, size_t framed_data_length,
-                                    mc_companion_receive_callback callback);
-void mc_companion_write_serial_frame(bool is_server, companion_packet_t* packet, size_t output_buffer_size,
-                                     uint8_t* out_framed_data, size_t* out_framed_data_length);
