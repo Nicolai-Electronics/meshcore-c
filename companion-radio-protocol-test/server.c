@@ -234,6 +234,8 @@ int main(int argc, char* argv[]) {
     }
     cfsetispeed(&tty, cfgetospeed(&tty));
 
+    cfmakeraw(&tty);
+
     if (tcsetattr(serial_port, TCSANOW, &tty) != 0) {
         printf("Failed to write attributes (%i): %s\n", errno, strerror(errno));
         return 1;
@@ -242,6 +244,10 @@ int main(int argc, char* argv[]) {
     while (1) {
         uint8_t read_buffer[MESHCORE_COMPANION_MAX_FRAME_SIZE] = {0};
         int     num_read                                       = read(serial_port, &read_buffer, sizeof(read_buffer));
+        if (num_read < 1) {
+            printf("Failed to read from serial port, exiting\r\n");
+            break;
+        }
 
         mc_companion_read_serial_command(read_buffer, num_read, packet_callback);
     }
