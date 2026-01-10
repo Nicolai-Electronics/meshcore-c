@@ -14,7 +14,7 @@ clean:
 
 .PHONY: run
 run:
-	cd $(BUILD); ./companion_server /dev/ttyUSB0 115200
+	cd $(BUILD); ./companion_server /dev/ttyUSB1 115200
 
 .PHONY: format
 format:

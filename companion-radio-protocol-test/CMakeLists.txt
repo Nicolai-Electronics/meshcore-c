@@ -14,14 +14,3 @@ target_include_directories(
     ..
     ../companion-radio-protocol
 )
-
-list(APPEND client_sources
-    ../client.c)
-
-add_executable(companion_client ${client_sources})
-
-target_include_directories(
-    companion_client PUBLIC
-    ..
-    ../companion-radio-protocol
-)

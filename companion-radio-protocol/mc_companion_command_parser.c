@@ -25,9 +25,9 @@ companion_command_definition_t companion_command_definitions[] = {
     {COMPANION_CMD_SEND_SELF_ADVERT, 0, 0},
     {COMPANION_CMD_SET_ADVERT_NAME, 1, sizeof(companion_cmd_set_advert_name_args_t)},
     {COMPANION_CMD_ADD_UPDATE_CONTACT,
-     sizeof(companion_cmd_add_update_contact_args_t) - FIELD_SIZE(companion_cmd_add_update_contact_args_t, gps_latitude) -
-         FIELD_SIZE(companion_cmd_add_update_contact_args_t, gps_longitude) - FIELD_SIZE(companion_cmd_add_update_contact_args_t, last_modified),
-     sizeof(companion_cmd_add_update_contact_args_t)},
+     sizeof(companion_contact_t) - FIELD_SIZE(companion_contact_t, gps_latitude) - FIELD_SIZE(companion_contact_t, gps_longitude) -
+         FIELD_SIZE(companion_contact_t, last_modified),
+     sizeof(companion_contact_t)},
     {COMPANION_CMD_SYNC_NEXT_MESSAGE, 0, 0},
     {COMPANION_CMD_SET_RADIO_PARAMS, sizeof(companion_cmd_set_radio_params_args_t), sizeof(companion_cmd_set_radio_params_args_t)},
     {COMPANION_CMD_SET_RADIO_TX_POWER, sizeof(companion_cmd_set_radio_tx_power_args_t), sizeof(companion_cmd_set_radio_tx_power_args_t)},
@@ -75,12 +75,11 @@ companion_command_definition_t companion_command_definitions[] = {
     {COMPANION_CMD_GET_STATS, 0, 0},
 };
 
-mc_companion_command_parser_error_t mc_companion_parse_command(uint8_t* data, uint16_t data_length, companion_packet_t* out_packet) {
+mc_companion_command_parser_error_t mc_companion_parse_command(uint8_t* data, uint16_t data_length, companion_command_packet_t* out_packet) {
     if (data_length < 1) {
         return COMPANION_COMMAND_PARSER_ERROR_INVALID_COMMAND;  // No command byte
     }
-    memset(out_packet, 0, sizeof(companion_packet_t));
-    out_packet->type     = COMPANION_PACKET_TYPE_COMMAND;
+    memset(out_packet, 0, sizeof(companion_command_packet_t));
     out_packet->command  = (companion_command_t)data[0];
     data                 = &data[1];
     data_length         -= 1;

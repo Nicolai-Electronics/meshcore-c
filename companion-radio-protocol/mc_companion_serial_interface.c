@@ -9,50 +9,28 @@
 
 #define FIELD_SIZE(type, field) (sizeof(((type*)0)->field))
 
-static uint8_t            rx_buffer[MESHCORE_COMPANION_MAX_FRAME_SIZE] = {0};
-static uint16_t           rx_position                                  = 0;
-static companion_packet_t packet_buffer                                = {0};
+static uint8_t                    rx_buffer[MESHCORE_COMPANION_MAX_FRAME_SIZE] = {0};
+static uint16_t                   rx_position                                  = 0;
+static companion_command_packet_t command_packet_buffer                        = {0};
 
-static void mc_companion_handle_serial_frame(bool is_server, mc_companion_receive_callback callback) {
+static void mc_companion_handle_serial_command_frame(mc_companion_server_callback callback) {
     uint16_t length = sizeof(char) + sizeof(uint16_t) + (rx_buffer[1] | (rx_buffer[2] << 8));
 
-    /*printf("Frame: ");
-    for (size_t i = 0; i < length; i++) {
-        printf("%02X", rx_buffer[i]);
+    // Received packet is a command
+    if (length < 1) {
+        // Packet is too short
+        return;
     }
-    printf("\r\n");*/
 
-    if (is_server) {
-        // Received packet is a command
-        if (length < 1) {
-            // Packet is too short
-            return;
-        }
-        mc_companion_command_parser_error_t error = mc_companion_parse_command(&rx_buffer[3], length - 3, &packet_buffer);
-        if (error != COMPANION_COMMAND_PARSER_ERROR_NONE) {
-            // Invalid command or arguments
-            printf("Invalid %s\r\n", (error == COMPANION_COMMAND_PARSER_ERROR_INVALID_COMMAND) ? "command" : "arguments");
-            companion_packet_t error_packet = {0};
-            error_packet.type               = COMPANION_PACKET_TYPE_ERROR;
-            error_packet.error =
-                (error == COMPANION_COMMAND_PARSER_ERROR_INVALID_COMMAND) ? COMPANION_ERROR_CODE_UNSUPPORTED_CMD : COMPANION_ERROR_CODE_ILLEGAL_ARG;
-            callback(&error_packet);
-            return;
-        }
-        callback(&packet_buffer);
-    }
+    mc_companion_command_parser_error_t error = mc_companion_parse_command(&rx_buffer[3], length - 3, &command_packet_buffer);
+    callback(&command_packet_buffer, error);
 }
 
-void mc_companion_read_serial_frame(bool is_server, uint8_t* received_data, size_t received_data_length, mc_companion_receive_callback callback) {
-    /*printf("RX:    ");
-    for (size_t i = 0; i < received_data_length; i++) {
-        printf("%02X", received_data[i]);
-    }
-    printf("\r\n");*/
+void mc_companion_read_serial_command(uint8_t* received_data, size_t received_data_length, mc_companion_server_callback server_callback) {
     while (received_data_length > 0) {
         if (rx_position == 0) {
             // Ready to receive a frame, search for start byte
-            char start_byte = is_server ? '<' : '>';
+            char start_byte = '<';
             while (received_data_length > 0) {
                 if (*received_data == start_byte) {
                     // Found start byte
@@ -92,46 +70,25 @@ void mc_companion_read_serial_frame(bool is_server, uint8_t* received_data, size
 
             if (expected_length == rx_position) {
                 // Received a full frame
-                mc_companion_handle_serial_frame(is_server, callback);
+                mc_companion_handle_serial_command_frame(server_callback);
                 rx_position = 0;
             }
         }
     }
 }
 
-void mc_companion_write_serial_frame(bool is_server, companion_packet_t* packet, uint16_t args_length, size_t output_buffer_size, uint8_t* out_framed_data,
-                                     size_t* out_framed_data_length) {
+void mc_companion_write_serial_response(companion_response_packet_t* packet, uint16_t args_length, size_t output_buffer_size, uint8_t* out_framed_data,
+                                        size_t* out_framed_data_length) {
 
     uint16_t packet_length = args_length;
-    uint8_t  packet_type   = 0;
+    uint8_t  packet_type   = packet->response;
     uint8_t* packet_data   = packet->args;
-
-    switch (packet->type) {
-        case COMPANION_PACKET_TYPE_COMMAND:
-            break;
-        case COMPANION_PACKET_TYPE_RESPONSE:
-            packet_type = (uint8_t)packet->response;
-            break;
-        case COMPANION_PACKET_TYPE_PUSH:
-            break;
-        case COMPANION_PACKET_TYPE_ERROR:
-            packet_type   = COMPANION_RESPONSE_CODE_ERR;
-            packet_length = 1;
-            break;
-        case COMPANION_PACKET_TYPE_OK:
-            packet_type   = COMPANION_RESPONSE_CODE_OK;
-            packet_length = 0;
-            break;
-        case COMPANION_PACKET_TYPE_NONE:
-        default:
-            break;
-    }
 
     packet_length++;
 
     // Frame the data
     uint16_t position         = 0;
-    out_framed_data[position] = is_server ? '>' : '<';
+    out_framed_data[position] = '>';
     position++;
     out_framed_data[position] = (packet_length >> 0) & 0xFF;
     position++;
