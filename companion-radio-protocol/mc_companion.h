@@ -575,6 +575,7 @@ typedef struct {
         companion_contact_t                    response_contact_args;
         companion_resp_end_of_contacts_t       response_end_of_contacts_args;
         companion_resp_self_info_args_t        response_self_info_args;
+        companion_resp_sent_args_t             response_sent_args;
         companion_resp_contact_msg_recv_args_t response_contact_msg_recv_args;
         companion_resp_channel_msg_recv_args_t response_channel_msg_recv_args;
         companion_resp_current_time_args_t     response_current_time_args;

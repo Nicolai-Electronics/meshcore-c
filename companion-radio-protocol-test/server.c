@@ -60,6 +60,23 @@ void packet_callback(companion_command_packet_t* packet, mc_companion_command_pa
                                                sizeof(tx_buffer), tx_buffer, &tx_length);
             transmit(tx_buffer, tx_length);
             break;
+        case COMPANION_CMD_SEND_TXT_MSG:
+            printf("Received send text message command. Text type %u, attempt %u, timestamp %u, pub key prefix %02X%02X%02X%02X%02X%02X, text: '%s'\r\n",
+                   packet->command_send_txt_msg_args.txt_type, packet->command_send_txt_msg_args.attempt, packet->command_send_txt_msg_args.msg_timestamp,
+                   packet->command_send_txt_msg_args.pub_key_prefix[0], packet->command_send_txt_msg_args.pub_key_prefix[1],
+                   packet->command_send_txt_msg_args.pub_key_prefix[2], packet->command_send_txt_msg_args.pub_key_prefix[3],
+                   packet->command_send_txt_msg_args.pub_key_prefix[4], packet->command_send_txt_msg_args.pub_key_prefix[5],
+                   packet->command_send_txt_msg_args.text);
+            tx_packet.response                           = COMPANION_RESPONSE_CODE_SENT;
+            tx_packet.response_sent_args.type            = packet->command_send_txt_msg_args.txt_type;
+            tx_packet.response_sent_args.expected_ack[0] = 0x12;
+            tx_packet.response_sent_args.expected_ack[1] = 0x34;
+            tx_packet.response_sent_args.expected_ack[2] = 0x56;
+            tx_packet.response_sent_args.expected_ack[3] = 0x78;
+            tx_packet.response_sent_args.est_timeout     = 10000;
+            mc_companion_write_serial_response(&tx_packet, sizeof(companion_resp_sent_args_t), sizeof(tx_buffer), tx_buffer, &tx_length);
+            transmit(tx_buffer, tx_length);
+            break;
         case COMPANION_CMD_GET_CONTACTS:
             companion_contact_t contacts[] = {
                 {
