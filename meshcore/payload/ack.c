@@ -5,7 +5,7 @@
 #include "ack.h"
 #include <stdint.h>
 #include <string.h>
-#include "packet.h"
+#include "../packet.h"
 
 #define member_size(type, member) (sizeof(((type*)0)->member))
 

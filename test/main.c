@@ -202,34 +202,29 @@ int main(int argc, char* argv[]) {
                 if (memcmp(out, grp_txt.mac, MESHCORE_CIPHER_MAC_SIZE) == 0) {
                     printf("MAC verification: SUCCESS\n");
 
-                    // Copy encrypted data to buffer for decryption, AES works in-place
-                    grp_txt.decrypted.data_length = grp_txt.data_length;
-                    memcpy(grp_txt.decrypted.data, grp_txt.data, grp_txt.data_length);
+                    // Decrypt data (in-place)
+                    uint8_t decrypted_data[256];
+                    memcpy(decrypted_data, grp_txt.data, grp_txt.data_length);
 
                     struct AES_ctx ctx;
                     AES_init_ctx(&ctx, key);
-                    for (uint8_t i = 0; i < (grp_txt.decrypted.data_length / 16); i++) {
-                        AES_ECB_decrypt(&ctx, &grp_txt.decrypted.data[i * 16]);
+                    for (uint8_t i = 0; i < (grp_txt.data_length / 16); i++) {
+                        AES_ECB_decrypt(&ctx, &decrypted_data[i * 16]);
                     }
 
-                    printf("Data [%d]: ", grp_txt.decrypted.data_length);
-                    for (unsigned int i = 0; i < grp_txt.decrypted.data_length; i++) {
-                        printf("%02X", grp_txt.decrypted.data[i]);
+
+                    printf("Data [%d]: ", grp_txt.data_length);
+                    for (unsigned int i = 0; i < grp_txt.data_length; i++) {
+                        printf("%02X", decrypted_data[i]);
                     }
                     printf("\n");
 
-                    uint8_t position = 0;
-                    memcpy(&grp_txt.decrypted.timestamp, grp_txt.decrypted.data, sizeof(uint32_t));
-                    position                            += sizeof(uint32_t);
-                    grp_txt.decrypted.text_type          = grp_txt.decrypted.data[position];
-                    position                            += sizeof(uint8_t);
-                    size_t text_length                   = grp_txt.decrypted.data_length - position;
-                    grp_txt.decrypted.text               = (char*)&grp_txt.decrypted.data[position];
-                    grp_txt.decrypted.text[text_length]  = '\0';
+                    meshcore_grp_txt_data_t data = {0};
+                    meshcore_grp_txt_data_deserialize(decrypted_data, grp_txt.data_length, &data);
 
-                    printf("Timestamp: %" PRIu32 "\n", grp_txt.decrypted.timestamp);
-                    printf("Text Type: %u\n", grp_txt.decrypted.text_type);
-                    printf("Message: '%s'\n", grp_txt.decrypted.text);
+                    printf("Timestamp: %" PRIu32 "\n", data.timestamp);
+                    printf("Text Type: %u\n", data.text_type);
+                    printf("Message: '%s'\n", data.text);
 
                 } else {
                     printf("MAC verification: FAILURE\n");

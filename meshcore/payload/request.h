@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "packet.h"
+#include "../packet.h"
 
 // Definitions
 

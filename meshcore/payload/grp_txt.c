@@ -5,7 +5,7 @@
 #include "grp_txt.h"
 #include <stdint.h>
 #include <string.h>
-#include "packet.h"
+#include "../packet.h"
 
 #define member_size(type, member) (sizeof(((type*)0)->member))
 
@@ -51,5 +51,34 @@ int meshcore_grp_txt_deserialize(uint8_t* data, uint8_t size, meshcore_grp_txt_t
     memcpy(out_grp_txt->data, &data[position], out_grp_txt->data_length);
     position += out_grp_txt->data_length;
 
+    return 0;
+}
+
+int meshcore_grp_txt_data_serialize(const meshcore_grp_txt_data_t* data, uint8_t* out_data, uint8_t* out_size) {
+    uint8_t* ptr = out_data;
+    memcpy(ptr, &data->timestamp, sizeof(uint32_t));
+    ptr                += sizeof(uint32_t);
+    *ptr                = data->text_type;
+    ptr                += sizeof(uint8_t);
+    size_t text_length  = strlen(data->text);
+    memcpy(ptr, data->text, text_length);
+    ptr       += text_length;
+    *ptr       = '\0';
+    *out_size  = (ptr - out_data);
+    return 0;
+}
+
+int meshcore_grp_txt_data_deserialize(uint8_t* data, uint8_t size, meshcore_grp_txt_data_t* out_data) {
+    uint8_t* ptr = data;
+    memset(out_data, 0, sizeof(meshcore_grp_txt_data_t));
+    memcpy(&out_data->timestamp, ptr, sizeof(uint32_t));
+    ptr                 += sizeof(uint32_t);
+    out_data->text_type  = *ptr;
+    ptr                 += sizeof(uint8_t);
+    size_t text_length   = size - (ptr - data);
+    if (text_length >= sizeof(out_data->text)) {
+        text_length = sizeof(out_data->text) - 1;
+    }
+    memcpy(out_data->text, ptr, text_length);
     return 0;
 }

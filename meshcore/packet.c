@@ -44,7 +44,7 @@ int meshcore_serialize(const meshcore_message_t* message, uint8_t* out_data, uin
     if (message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_FLOOD || message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_DIRECT) {
         // The message has transport codes
         memcpy(&out_data[position], message->transport_codes, member_size(meshcore_line_header_t, transport_codes));
-        position += sizeof(uint16_t);
+        position += member_size(meshcore_line_header_t, transport_codes);
     }
 
     out_data[position]  = message->path_length;
@@ -85,8 +85,8 @@ int meshcore_deserialize(uint8_t* data, uint8_t size, meshcore_message_t* out_me
         if (size - position < sizeof(uint16_t)) {
             return -1;
         }
-        memcpy(out_message->transport_codes, line_header->transport_codes, sizeof(uint16_t));
-        position += sizeof(uint16_t);
+        memcpy(out_message->transport_codes, line_header->transport_codes, member_size(meshcore_line_header_t, transport_codes));
+        position += member_size(meshcore_line_header_t, transport_codes);
     }
 
     if (size - position < sizeof(uint8_t)) {
