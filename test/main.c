@@ -6,6 +6,7 @@
 #include "meshcore/packet.h"
 #include "meshcore/payload/advert.h"
 #include "meshcore/payload/grp_txt.h"
+#include "ed25519/ed_25519.h"
 
 unsigned char packet_bin[]   = {0x11, 0x00, 0x7e, 0x76, 0x62, 0x67, 0x6f, 0x7f, 0x08, 0x50, 0xa8, 0xa3, 0x55, 0xba, 0xaf, 0xbf, 0xc1, 0xeb, 0x7b, 0x41,
                                 0x74, 0xc3, 0x40, 0x44, 0x2d, 0x7d, 0x71, 0x61, 0xc9, 0x47, 0x4a, 0x2c, 0x94, 0x00, 0x6c, 0xe7, 0xcf, 0x68, 0x2e, 0x58,
@@ -91,14 +92,16 @@ const char* role_to_string(meshcore_device_role_t role) {
 }
 
 int main(int argc, char* argv[]) {
-    printf("Input packet binary data [%zu]:\n", sizeof(test_message_rx_bin));
-    for (unsigned int i = 0; i < sizeof(test_message_rx_bin); i++) {
-        printf("%02X", test_message_rx_bin[i]);
+    uint8_t* packet = packet_bin;
+    size_t packet_size = sizeof(packet_bin);
+    printf("Input packet binary data [%zu]:\n", packet_size);
+    for (unsigned int i = 0; i < packet_size; i++) {
+        printf("%02X", packet[i]);
     }
     printf("\n");
 
     meshcore_message_t message;
-    if (meshcore_deserialize(test_message_rx_bin, sizeof(test_message_rx_bin), &message) >= 0) {
+    if (meshcore_deserialize(packet, packet_size, &message) >= 0) {
         printf("Decoded message:\n");
         printf("Type: %s [%d]\n", type_to_string(message.type), message.type);
         printf("Route: %s [%d]\n", route_to_string(message.route), message.route);
@@ -156,6 +159,42 @@ int main(int argc, char* argv[]) {
                 } else {
                     printf("Name: (not available)\n");
                 }
+
+            uint8_t verification_data[MESHCORE_MAX_PAYLOAD_SIZE] = {0};
+            size_t verification_data_size = 0;
+            memcpy(&verification_data[verification_data_size], advert.pub_key, MESHCORE_PUB_KEY_SIZE);
+            verification_data_size += MESHCORE_PUB_KEY_SIZE;
+            memcpy(&verification_data[verification_data_size], &advert.timestamp, sizeof(uint32_t));
+            verification_data_size += sizeof(uint32_t);
+            memcpy(&verification_data[verification_data_size],
+                   &message.payload[MESHCORE_PUB_KEY_SIZE + sizeof(uint32_t) + MESHCORE_SIGNATURE_SIZE],
+                   message.payload_length - MESHCORE_PUB_KEY_SIZE - sizeof(uint32_t) - MESHCORE_SIGNATURE_SIZE);
+            verification_data_size +=
+                message.payload_length - MESHCORE_PUB_KEY_SIZE - sizeof(uint32_t) - MESHCORE_SIGNATURE_SIZE;
+
+            printf("Key for signature verification: ");
+            for (size_t i = 0; i < MESHCORE_PUB_KEY_SIZE; i++) {
+                printf("%02X", advert.pub_key[i]);
+            }
+            printf("\r\n");
+
+            printf("Signature: ");
+            for (size_t i = 0; i < MESHCORE_SIGNATURE_SIZE; i++) {
+                printf("%02X", advert.signature[i]);
+            }
+            printf("\r\n");
+
+            printf("Data for signature verification: ");
+            for (size_t i = 0; i < verification_data_size; i++) {
+                printf("%02X", verification_data[i]);
+            }
+            printf("\r\n");
+
+            if (ed25519_verify(advert.signature, verification_data, verification_data_size, advert.pub_key)) {
+                printf("Advertisement signature verification SUCCESSFUL.\n");
+            } else {
+                printf("Warning: Advertisement signature verification FAILED!\n");
+            }
 
                 if (meshcore_advert_serialize(&advert, message.payload, &message.payload_length) < 0) {
                     printf("Failed to serialize node advertisement payload.\n");
@@ -250,7 +289,7 @@ int main(int argc, char* argv[]) {
         }
         printf("\n");
 
-        if (encoded_packet_len != sizeof(test_message_rx_bin) || memcmp(encoded_packet, test_message_rx_bin, sizeof(test_message_rx_bin)) != 0) {
+        if (encoded_packet_len != packet_size || memcmp(encoded_packet, packet, packet_size) != 0) {
             printf("Serialized packet does not match original input!\n");
             return -1;
         } else {
