@@ -14,9 +14,9 @@ clean:
 
 .PHONY: run
 run:
-	cd $(BUILD); ./companion_server /dev/ttyUSB1 115200
+	cd $(BUILD); ./meshcore_c
 
 .PHONY: format
 format:
-	find meshcore/ -iname '*.h' -o -iname '*.c' -o -iname '*.cpp' | xargs clang-format -i
+	find ../meshcore -iname '*.h' -o -iname '*.c' -o -iname '*.cpp' | xargs clang-format -i
 	echo "main.c" | xargs clang-format -i

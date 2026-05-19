@@ -41,8 +41,7 @@ int meshcore_serialize(const meshcore_message_t* message, uint8_t* out_data, uin
     line_header->header += (message->type & PACKET_HEADER_TYPE_MASK) << PACKET_HEADER_TYPE_SHIFT;
     line_header->header += (message->version & PACKET_HEADER_VER_MASK) << PACKET_HEADER_VER_SHIFT;
 
-    if (message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_FLOOD ||
-        message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_DIRECT) {
+    if (message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_FLOOD || message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_DIRECT) {
         // The message has transport codes
         memcpy(&out_data[position], message->transport_codes, member_size(meshcore_line_header_t, transport_codes));
         position += sizeof(uint16_t);
@@ -81,8 +80,7 @@ int meshcore_deserialize(uint8_t* data, uint8_t size, meshcore_message_t* out_me
     out_message->type    = (line_header->header >> PACKET_HEADER_TYPE_SHIFT) & PACKET_HEADER_TYPE_MASK;
     out_message->version = (line_header->header >> PACKET_HEADER_VER_SHIFT) & PACKET_HEADER_VER_MASK;
 
-    if (out_message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_FLOOD ||
-        out_message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_DIRECT) {
+    if (out_message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_FLOOD || out_message->route == MESHCORE_ROUTE_TYPE_TRANSPORT_DIRECT) {
         // The message has transport codes
         if (size - position < sizeof(uint16_t)) {
             return -1;
